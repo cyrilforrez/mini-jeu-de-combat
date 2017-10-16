@@ -15,6 +15,7 @@
 
 <body>
 <?php
+
   class people
   {
     private $_id;
@@ -99,6 +100,86 @@
       }
     }
   }
+
+  class peoplemanager
+  {
+    private $_db;
+
+    public function add(people $people1)
+    {
+      $q = $this->_db->prepare('INSERT INTO people(name) VALUES(:name)');
+      $q->bindValue(':name', $people1->name());
+      $q->execute();
+
+      $people1->hydrate([
+        'id'=> $this->_db->lastInsertId(),
+        'damage' => 0,
+      ]);
+    }
+
+    public function count()
+    {
+      return $this->_db->query('SELECT COUNT(*) FROM people WHERE id = '.$info)->fetchColumn();
+    }
+
+    public function delete(people $people1)
+    {
+      $this->_db->exec('DELETE FROM people WHERE id = '.$people1->id());
+    }
+
+    public function exists($info)
+    {
+      if (is_int($info)) {
+        return (bool) $this->_db->query('SELECT COUNT(*)FROM people WHERE id = '.$info)->fecthColumn();
+      }
+
+      $q = $this->_db->prepare('SELECT COUNT(*)FROM people WHERE name = :name');
+      $q-> execute([':name => $info']);
+      return (bool) $q-> fetchColumn();
+    }
+
+    public function get($info)
+    {
+      if (is_int($info)) {
+        $q = $this->_db->query('SELECT id, name, damage FROM poeple WHERE id = '.$infos);
+        $donnees = $q->fetch(PDO::FETCH_ASSOC);
+        return new people($donnees);
+      } else {
+        $q = $this->_db->prepare('SELECT id, name, damage FROM people WHERE name = :name');
+        $q->execute ([':name' => $info]);
+        return new poeple($q-> fecth(PDO::FETCH_ASSOC));
+      }
+    }
+
+    public function getList($name)
+    {
+      $persos = [];
+
+      $q = $this->_db->prepare('SELECT id, name, damage FROM poeple WHERE name <> :name ORDER BY name');
+      $q ->execute([':name' => $name]);
+
+      while ($donnees = $q->fetch(PDO::FETCH_ASSOC)) {
+        $persos[] = new poeple($donnees);
+      }
+
+    return $persos;
+    }
+
+    public function update(people $people1)
+    {
+      $q = $this->_db->prepare('UPDATE people SET damage = :damage WHERE id = :id');
+      $q->bindValue(':damage', $people1->damage(), PDO::PARAM_INT);
+      $q->binValue(':id', $people1->id(), PDO::PARAM_INT);
+
+      $q->execute();
+    }
+
+    public function setDb(PDO $db)
+    {
+      $this->_db = $db;
+    }
+  }
+
 
 
 
