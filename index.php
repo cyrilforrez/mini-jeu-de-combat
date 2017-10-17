@@ -1,197 +1,108 @@
-<!DOCTYPE html>
-<html lang="fr">
-
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <title>Mini Jeuc de combat</title>
-  <meta name="description" content="">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="favicon.ico">
-  <link rel="stylesheet" href="css/materialize.min.css">
-  <link rel="stylesheet" href="css/normalize.css">
-  <link rel="stylesheet" href="css/main.css">
-</head>
-
-<body>
 <?php
 
-  class people
+$db = new PDO('mysql:host=localhost;dbname=minijeudecombat', 'root', '');
+$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING); // On émet une alerte à chaque fois qu'une requête a échoué.
+
+
+class character
+{
+  private $_damages,
+          $_id,
+          $_name;
+
+  const CEST_MOI = 1; // Constante renvoyée par la méthode `frapper` si on se frappe soi-même.
+  const charactNNAGE_TUE = 2; // Constante renvoyée par la méthode `frapper` si on a tué le charactnnage en le frappant.
+  const charactNNAGE_FRAPPE = 3; // Constante renvoyée par la méthode `frapper` si on a bien frappé le charactnnage.
+
+
+  public function __construct(array $donnees)
   {
-    private $_id;
-    private $_name;
-    private $_damage;
+    $this->hydrate($donnees);
+  }
 
-    const CEST_MOI = 1; //Constant returned by the `hit 'method if you hit yourself.
-    const PEOPLE_KILL = 2; //Constant returned by the `hit 'method if the character was killed by hitting it.
-    const PEOPLE_HIT = 3; //Constante renvoyée par la méthode `frapper` si on a bien frappé le personnage.
-
-    public function __construct(array $donnees)
+  public function hit(character $charact)
+  {
+    if ($charact->id() == $this->_id)
     {
-      $this->hydrate($donnees);
+      return self::CEST_MOI;
     }
 
-    public function hit(People $people1)
-    {
-      if ($people1->id() == $this->_id) {
-        return self::CEST_MOI;
-      }
-    }
-    // The character is told he must receive damage.
+    // On indique au character qu'il doit recevoir des dégâts.
+    // Puis on retourne la valeur renvoyée par la méthode : self::character_TUE ou self::charactNNAGE_FRAPPE
+    return $charact->receive_damage();
+  }
 
-    // Then we return the value returned by the method: self :: CHARACTER_TUE or self :: PERSONNAGE_FRAPPE
-
-    public function hydrate(array $donnees)
+  public function hydrate(array $donnees)
+  {
+    foreach ($donnees as $key => $value)
     {
-      foreach ($donnees as $key => $value) {
-        $method = 'set'.ucfirst($key);
-        if (method_exists($this, $method)) {
-          $this->$method($value);
-        }
-      }
-    }
+      $method = 'set'.ucfirst($key);
 
-    public function receiveDamage()
-    {
-      $this->_damage += 5;
-      // If we have 100 damage or more, we say that the character has been killed.
-      if ($this->_damage >= 100) {
-        return self::PEOPLE_KILL;
-      }
-      // Otherwise, we just say that the character has been hit.
-      return self::PEOPLE_HIT;
-    }
-
-    public function getId()
-    {
-      return $this->_id;
-    }
-
-    public function getName()
-    {
-      return $this->_name;
-    }
-
-    public function getDamage()
-    {
-      return $this->_damage;
-    }
-
-    public function setId($id)
-    {
-      $id = (int) $id;
-      if ($id > 0) {
-        $this-> id= $id;
-      }
-    }
-
-    public function setName($name)
-    {
-      if (is_string($name)) {
-        $this->_name = $name;
-      }
-    }
-
-    public function setDamage($damage)
-    {
-      $damage = (int) $damage;
-      if ($damage >= 0 && $damage <= 100) {
-        $this->_damage =$damage;
+      if (method_exists($this, $method))
+      {
+        $this->$method($value);
       }
     }
   }
 
-  class peoplemanager
+  public function receive_damage()
   {
-    private $_db;
+    $this->_damages += 5;
 
-    public function add(people $people1)
+    // Si on a 100 de dégâts ou plus, on dit que le charactnnage a été tué.
+    if ($this->_damages >= 100)
     {
-      $q = $this->_db->prepare('INSERT INTO people(name) VALUES(:name)');
-      $q->bindValue(':name', $people1->name());
-      $q->execute();
-
-      $people1->hydrate([
-        'id'=> $this->_db->lastInsertId(),
-        'damage' => 0,
-      ]);
+      return self::charactNNAGE_TUE;
     }
 
-    public function count()
-    {
-      return $this->_db->query('SELECT COUNT(*) FROM people WHERE id = '.$info)->fetchColumn();
-    }
-
-    public function delete(people $people1)
-    {
-      $this->_db->exec('DELETE FROM people WHERE id = '.$people1->id());
-    }
-
-    public function exists($info)
-    {
-      if (is_int($info)) {
-        return (bool) $this->_db->query('SELECT COUNT(*)FROM people WHERE id = '.$info)->fecthColumn();
-      }
-
-      $q = $this->_db->prepare('SELECT COUNT(*)FROM people WHERE name = :name');
-      $q-> execute([':name => $info']);
-      return (bool) $q-> fetchColumn();
-    }
-
-    public function get($info)
-    {
-      if (is_int($info)) {
-        $q = $this->_db->query('SELECT id, name, damage FROM poeple WHERE id = '.$infos);
-        $donnees = $q->fetch(PDO::FETCH_ASSOC);
-        return new people($donnees);
-      } else {
-        $q = $this->_db->prepare('SELECT id, name, damage FROM people WHERE name = :name');
-        $q->execute ([':name' => $info]);
-        return new poeple($q-> fecth(PDO::FETCH_ASSOC));
-      }
-    }
-
-    public function getList($name)
-    {
-      $persos = [];
-
-      $q = $this->_db->prepare('SELECT id, name, damage FROM poeple WHERE name <> :name ORDER BY name');
-      $q ->execute([':name' => $name]);
-
-      while ($donnees = $q->fetch(PDO::FETCH_ASSOC)) {
-        $persos[] = new poeple($donnees);
-      }
-
-    return $persos;
-    }
-
-    public function update(people $people1)
-    {
-      $q = $this->_db->prepare('UPDATE people SET damage = :damage WHERE id = :id');
-      $q->bindValue(':damage', $people1->damage(), PDO::PARAM_INT);
-      $q->binValue(':id', $people1->id(), PDO::PARAM_INT);
-
-      $q->execute();
-    }
-
-    public function setDb(PDO $db)
-    {
-      $this->_db = $db;
-    }
+    // Sinon, on se contente de dire que le charactnnage a bien été frappé.
+    return self::charactNNAGE_FRAPPE;
   }
 
 
+  // GETTERS //
 
 
-$people1 = new people($donnees);
-echo $people1->name(),$people1->damage() ;
- ?>
+  public function getDamages()
+  {
+    return $this->_damages;
+  }
 
+  public function getId()
+  {
+    return $this->_id;
+  }
 
+  public function getName()
+  {
+    return $this->_name;
+  }
 
-  <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
-  <script src="js/vendor/modernizr-2.8.3.min.js"></script>
-  <script src="js/materialize.min.js"></script>
-</body>
+  public function setDamages($damages)
+  {
+    $damages = (int) $damages;
 
-</html>
+    if ($damages >= 0 && $damages <= 100)
+    {
+      $this->_damages = $damages;
+    }
+  }
+
+  public function setId($id)
+  {
+    $id = (int) $id;
+
+    if ($id > 0)
+    {
+      $this->_id = $id;
+    }
+  }
+
+  public function setName($name)
+  {
+    if (is_string($name))
+    {
+      $this->_name = $name;
+    }
+  }
+}
