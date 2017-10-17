@@ -201,3 +201,56 @@ class CharactersManager
         $this->_db = $db;
     }
 }
+
+$manager = new CharactersManager($db);
+if (isset($_POST['create']) && isset($_POST['name']))
+{
+  $charact = new character(['name' =>$_POST['name']]);
+  if (!$charact->nameValid()) {
+    $message = 'The chosen name is invalid.';
+    unset($charact);
+  }
+  elseif ($manager->exists($charact->name())) {
+    $message ='The character name is already taken.';
+    unset($charact);
+  }
+  else {
+    $manager->add($charact);
+  }
+}
+
+?>
+
+<!DOCTYPE html>
+
+<html>
+
+  <head>
+
+    <title>TP : Mini jeu de combat</title>
+
+
+
+    <meta charset="utf-8" />
+
+  </head>
+
+  <body>
+
+    <form action="" method="post">
+
+      <p>
+
+        Nom : <input type="text" name="nom" maxlength="50" />
+
+        <input type="submit" value="Créer ce personnage" name="creer" />
+
+        <input type="submit" value="Utiliser ce personnage" name="utiliser" />
+
+      </p>
+
+    </form>
+
+  </body>
+
+</html>
